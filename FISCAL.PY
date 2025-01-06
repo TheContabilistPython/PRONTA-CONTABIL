@@ -4,6 +4,7 @@ import pyautogui
 import tkinter as tk
 from tkinter import simpledialog
 import time
+import os
 
 url_pis_e_cofins = r"C:\fiscal\html\temp_pis_e_cofins.htm"
 
@@ -196,6 +197,9 @@ pyautogui.write(r"C:\fiscal\html\pis_a_recup.htm")
 time.sleep(2)
 pyautogui.press('enter')
 
+# Ensure the file is saved before attempting to open it
+time.sleep(5)
+
 # Soma os valores e adiciona uma label de PIS_recup
 total_pis_recup = 0
 with open(caminho_html_pis_recup, 'r', encoding='utf-8') as file:
@@ -224,7 +228,11 @@ total_pis_recup = round(float(total_pis_recup), 2)
 if total_pis_recup == 0:
     total_pis_recup = None
 else:
-    print(f"PIS_recup: {total_pis_recup}".replace('.', ','))
+    try:
+        if total_pis_recup != 0:
+            print(f"PIS_recup: {total_pis_recup:.2f}".replace('.', ','))
+    except TypeError:
+        print(f"PIS_recup: {total_pis_recup}")
 
 # Lê o conteúdo do arquivo HTML
 with open(file_path, 'r', encoding='utf-8') as file:
@@ -275,10 +283,13 @@ for result in results:
             total_pis_recup += sum(valid_observations)
             print(valid_observations)
 
-if total_pis_recup == 0:
-    total_pis_recup = None
-else:
-    print(f"PIS_recup: {total_pis_recup:.2f}".replace('.', ','))
+if total_pis_recup is not None:
+    total_pis_recup = float(total_pis_recup)
+    try:
+        if total_pis_recup != 0:
+            print(f"PIS_recup: {total_pis_recup:.2f}".replace('.', ','))
+    except TypeError:
+        print(f"PIS_recup: {total_pis_recup}")
 
 with open(r"C:\fiscal\html\temp.html.htm", 'r', encoding='utf-8') as file:
     html_content = file.read()
@@ -341,38 +352,48 @@ for row in ws.iter_rows(min_row=2):
         print(f"Número {cell_a} encontrado: Valor na coluna H = {valor_coluna_h}")
         
         # Comparar os valores e escrever "OK" ou "Verificar" na coluna I
-        if cell_a == 617:
-            if valor_coluna_h == csrf_retido:
-                row[8].value = "OK"
-            else:
-                row[8].value = "Verificar"
-        elif cell_a == 2707:
-            if valor_coluna_h == inss_retido:
-                row[8].value = "OK"
-            else:
-                row[8].value = "Verificar"
-        elif cell_a == 185:
-            if valor_coluna_h == irrf_retido:
-                row[8].value = "OK"
-            else:
-                row[8].value = "Verificar"
-        elif cell_a == 186:
-            if valor_coluna_h == iss_retido:
-                row[8].value = "OK"
-            else:
-                row[8].value = "Verificar"
-        elif cell_a == 41:
-            if valor_coluna_h == ICMS_recup:
-                row[8].value = "OK"
-            else:
-                row[8].value = "Verificar"
-        elif cell_a == 46 and total_pis_recup is not None:
-            valor_coluna_h = float(str(valor_coluna_h))
-            if abs(valor_coluna_h - total_pis_recup) <= 0.10:
-                row[8].value = "OK"
-            else:
-                row[8].value = "Verificar"
+        try:
+            if cell_a == 617:
+                if valor_coluna_h == csrf_retido:
+                    row[8].value = "OK"
+                else:
+                    row[8].value = "Verificar"
+            elif cell_a == 2707:
+                if valor_coluna_h == inss_retido:
+                    row[8].value = "OK"
+                else:
+                    row[8].value = "Verificar"
+            elif cell_a == 185:
+                if valor_coluna_h == irrf_retido:
+                    row[8].value = "OK"
+                else:
+                    row[8].value = "Verificar"
+            elif cell_a == 186:
+                if valor_coluna_h == iss_retido:
+                    row[8].value = "OK"
+                else:
+                    row[8].value = "Verificar"
+            elif cell_a == 41:
+                if valor_coluna_h == ICMS_recup:
+                    row[8].value = "OK"
+                else:
+                    row[8].value = "Verificar"
+            elif cell_a == 46 and total_pis_recup is not None:
+                valor_coluna_h = float(str(valor_coluna_h))
+                if abs(valor_coluna_h - total_pis_recup) <= 0.10:
+                    row[8].value = "OK"
+                else:
+                    row[8].value = "Verificar"
+        except TypeError:
+            continue
 
 # Salvar as alterações de volta no arquivo Excel
 wb.save(excel_path)
+
+# Excluir os arquivos HTML
+os.remove(url_pis_e_cofins)
+os.remove(dir_icms_recup)
+os.remove(caminho_html_pis_recup)
+os.remove(r"C:\fiscal\html\temp.html.htm")
+
 print('hello world!')

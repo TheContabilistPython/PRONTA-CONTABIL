@@ -1,3 +1,4 @@
+from ipi_a_recup_utils import perform_actions, extract_saldo_credor, compare_and_write_to_excel
 from bs4 import BeautifulSoup
 import openpyxl
 import pyautogui
@@ -5,6 +6,7 @@ import tkinter as tk
 from tkinter import simpledialog
 import time
 import os
+import pygetwindow as gw
 
 pyautogui.FAILSAFE = False
 
@@ -98,7 +100,10 @@ time.sleep(3)
 pyautogui.press('enter')
 time.sleep(5)
 
-pyautogui.hotkey('alt', 'tab')
+if gw.getActiveWindow().title != 'UNICO.EXE':
+    pyautogui.hotkey('alt', 'tab')
+else:
+    pyautogui.press('enter')
 
 pyautogui.press('alt')
 time.sleep(1)
@@ -125,7 +130,11 @@ time.sleep(2)
 pyautogui.press('enter')
 
 time.sleep(5)
-pyautogui.hotkey('alt', 'tab')
+if gw.getActiveWindow().title != 'UNICO.EXE':
+    pyautogui.hotkey('alt', 'tab')
+else:
+    pyautogui.press('enter')
+
 time.sleep(1)
 pyautogui.press('alt')
 time.sleep(1)
@@ -166,7 +175,11 @@ time.sleep(5)
 # Caminho do arquivo HTML
 file_path = dir_icms_recup
 
-pyautogui.hotkey('alt', 'tab')
+if gw.getActiveWindow().title != 'UNICO.EXE':
+    pyautogui.hotkey('alt', 'tab')
+else:
+    pyautogui.press('enter')
+    
 time.sleep(1)
 pyautogui.press('alt')
 time.sleep(1)
@@ -198,71 +211,79 @@ time.sleep(2)
 pyautogui.write(r"C:\fiscal\html\pis_a_recup.htm")
 time.sleep(2)
 pyautogui.press('enter')
+time.sleep(5)
+pyautogui.hotkey('alt', 'tab')
 
 # Ensure the file is saved before attempting to open it
 time.sleep(5)
 
 # Soma os valores e adiciona uma label de PIS_recup
 total_pis_recup = 0
-with open(caminho_html_pis_recup, 'r', encoding='utf-8') as file:
-    content = file.read()
+try:
+    with open(caminho_html_pis_recup, 'r', encoding='utf-8') as file:
+        content = file.read()
 
-# Skip analysis if the file has less than 100 lines
-if len(content.splitlines()) < 100:
-    print("HTML file has less than 100 lines, skipping analysis.")
-else:
-    soup = BeautifulSoup(content, 'html.parser')
-    results = soup.find_all('td', string=lambda text: text and "01 – Crédito decorrente de operações próprias" in text)
-
-    for result in results:
-        row = result.find_parent('tr')
-        next_row = row.find_next_sibling('tr')
-        if next_row:
-            next_next_row = next_row.find_next_sibling('tr')
-            if next_next_row:
-                observations = [td.get_text(strip=True) for td in next_next_row.find_all('td')]
-                valid_observations = []
-                for obs in observations:
-                    try:
-                        valid_observations.append(float(obs.replace('.', '').replace(',', '.')))
-                    except ValueError:
-                        continue
-                total_pis_recup += sum(valid_observations)
-                print(valid_observations)
-
-    total_pis_recup = round(float(total_pis_recup), 2)
-    if total_pis_recup == 0:
-        total_pis_recup = None
+    # Skip analysis if the file has less than 100 lines
+    if len(content.splitlines()) < 100:
+        print("HTML file has less than 100 lines, skipping analysis.")
     else:
-        try:
-            if total_pis_recup != 0:
-                print(f"PIS_recup: {total_pis_recup:.2f}".replace('.', ','))
-        except TypeError:
-            print(f"PIS_recup: {total_pis_recup}")
+        soup = BeautifulSoup(content, 'html.parser')
+        results = soup.find_all('td', string=lambda text: text and "01 – Crédito decorrente de operações próprias" in text)
+
+        for result in results:
+            row = result.find_parent('tr')
+            next_row = row.find_next_sibling('tr')
+            if next_row:
+                next_next_row = next_row.find_next_sibling('tr')
+                if next_next_row:
+                    observations = [td.get_text(strip=True) for td in next_next_row.find_all('td')]
+                    valid_observations = []
+                    for obs in observations:
+                        try:
+                            valid_observations.append(float(obs.replace('.', '').replace(',', '.')))
+                        except ValueError:
+                            continue
+                    total_pis_recup += sum(valid_observations)
+                    print(valid_observations)
+
+        total_pis_recup = round(float(total_pis_recup), 2)
+        if total_pis_recup == 0:
+            total_pis_recup = None
+        else:
+            try:
+                if total_pis_recup != 0:
+                    print(f"PIS_recup: {total_pis_recup:.2f}".replace('.', ','))
+            except TypeError:
+                print(f"PIS_recup: {total_pis_recup}")
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_pis_recup} não existe. Continuando a execução...")
 
 # Lê o conteúdo do arquivo HTML
-with open(file_path, 'r', encoding='utf-8') as file:
-    content = file.read()
+try:
+    with open(file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
 
-# Skip analysis if the file has less than 100 lines
-if len(content.splitlines()) < 100:
-    print("HTML file has less than 100 lines, skipping analysis.")
-else:
-    # Cria um objeto BeautifulSoup
-    soup = BeautifulSoup(content, 'html.parser')
+    # Skip analysis if the file has less than 100 lines
+    if len(content.splitlines()) < 100:
+        print("HTML file has less than 100 lines, skipping analysis.")
+    else:
+        # Cria um objeto BeautifulSoup
+        soup = BeautifulSoup(content, 'html.parser')
 
-    # Busca a linha que começa com <td colspan="2" class="s9">190</td>
-    result = soup.find('td', {'colspan': '2', 'class': 's9'}, string='190')
+        # Busca a linha que começa com <td colspan="2" class="s9">190</td>
+        result = soup.find('td', {'colspan': '2', 'class': 's9'}, string='190')
 
-    # Exibe a linha inteira
-    if result:
-        row = result.find_parent('tr')
-        observations = row.find_all('td')
-        if len(observations) > 1:
-            ICMS_recup = observations[2].text
-            ICMS_recup = ICMS_recup.replace('.', '').replace(',', '.')
-            ICMS_recup = float(ICMS_recup)
-            print(f"ICMS_recup: {ICMS_recup:.2f}".replace('.', ','))
+        # Exibe a linha inteira
+        if result:
+            row = result.find_parent('tr')
+            observations = row.find_all('td')
+            if len(observations) > 1:
+                ICMS_recup = observations[2].text
+                ICMS_recup = ICMS_recup.replace('.', '').replace(',', '.')
+                ICMS_recup = float(ICMS_recup)
+                print(f"ICMS_recup: {ICMS_recup:.2f}".replace('.', ','))
+except FileNotFoundError:
+    print(f"Erro: O arquivo {file_path} não existe. Continuando a execução...")
 
 with open(r"C:\fiscal\html\temp.html.htm", 'r', encoding='utf-8') as file:
     html_content = file.read()
@@ -380,9 +401,13 @@ for row in ws.iter_rows(min_row=2):
                 else:
                     row[8].value = "Verificar"
             elif cell_a == 41:
-                if abs(valor_coluna_h - ICMS_recup) <= 0.10:
-                    row[8].value = "OK"
-                else:
+                try:
+                    if abs(valor_coluna_h - ICMS_recup) <= 0.10:
+                        row[8].value = "OK"
+                    else:
+                        row[8].value = "Verificar"
+                except NameError:
+                    print("Erro: ICMS_recup não definido. Continuando a execução...")
                     row[8].value = "Verificar"
             elif cell_a == 46 and total_pis_recup is not None:
                 valor_coluna_h = float(str(valor_coluna_h))
@@ -407,10 +432,47 @@ for row in ws.iter_rows(min_row=2):
 wb.save(excel_path)
 
 # Excluir os arquivos HTML
+try:
+    os.remove(url_pis_e_cofins)
+except FileNotFoundError:
+    print(f"Erro: O arquivo {url_pis_e_cofins} não existe. Continuando a execução...")
 
-os.remove(url_pis_e_cofins)
-os.remove(dir_icms_recup)
-os.remove(caminho_html_pis_recup)
-os.remove(r"C:\fiscal\html\temp.html.htm")
+try:
+    os.remove(dir_icms_recup)
+except FileNotFoundError:
+    print(f"Erro: O arquivo {dir_icms_recup} não existe. Continuando a execução...")
 
-print('hello world!')
+try:
+    os.remove(caminho_html_pis_recup)
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_pis_recup} não existe. Continuando a execução...")
+
+try:
+    os.remove(r"C:\fiscal\html\temp.html.htm")
+except FileNotFoundError:
+    print(f"Erro: O arquivo C:\\fiscal\\html\\temp.html.htm não existe. Continuando a execução...")
+
+# Caminho fixo do HTML
+html_path = "C:\\fiscal\\html\\temp_ipi_recup.htm"
+
+# Executar automação
+perform_actions(company_code, month_year, html_path)
+
+# Extrair valor do saldo credor
+ipi_a_recup = extract_saldo_credor(html_path)
+
+compare_and_write_to_excel(company_code, month_year, ipi_a_recup)
+
+# Mostrar resultado
+if ipi_a_recup is not None:
+    print(f"IPI a recuperar: {ipi_a_recup:.2f}")
+    
+pyautogui.hotkey('win', 'r')
+time.sleep(1)
+pyautogui.write('cmd')
+pyautogui.press('enter')
+time.sleep(2)
+pyautogui.write('taskkill /IM UNICO.EXE /F')
+pyautogui.press('enter')
+time.sleep(2)
+pyautogui.hotkey('alt', 'f4')

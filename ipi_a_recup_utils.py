@@ -98,12 +98,11 @@ if __name__ == "__main__":
     html_path = "C:\\fiscal\\html\\temp_ipi_recup.htm"
 
     # Execute automation steps
-    perform_actions(empresa, mes, html_path)
+    perform_actions(company_code, month_year, html_path)
 
     # Extract and display result
     ipi_a_recup = extract_saldo_credor(html_path)
     if ipi_a_recup is not None:
         print(f"IPI a recuperar: {ipi_a_recup:.2f}")
-        compare_and_write_to_excel(empresa, mes, ipi_a_recup)
+        compare_and_write_to_excel(company_code, month_year, ipi_a_recup)
         
-os.remove("C:\\fiscal\\html\\temp_ipi_recup.htm")

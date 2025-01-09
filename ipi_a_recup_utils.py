@@ -92,17 +92,72 @@ def compare_and_write_to_excel(empresa, mes, ipi_a_recup):
         print(f"Resultado da comparação escrito na planilha de conciliação.")
     except Exception as e:
         print(f"Erro ao abrir ou processar o arquivo de conciliação: {e}")
-
-
-if __name__ == "__main__":
-    html_path = "C:\\fiscal\\html\\temp_ipi_recup.htm"
-
-    # Execute automation steps
-    perform_actions(company_code, month_year, html_path)
-
-    # Extract and display result
-    ipi_a_recup = extract_saldo_credor(html_path)
-    if ipi_a_recup is not None:
-        print(f"IPI a recuperar: {ipi_a_recup:.2f}")
-        compare_and_write_to_excel(company_code, month_year, ipi_a_recup)
         
+html_path_cofins_recup = "C:\\fiscal\\html\\temp_cofins_recup.htm"        
+                
+def perform_actions_cofins_a_recup(empresa, mes, html_path_cofins_recup):
+    time.sleep(5)
+
+    pyautogui.hotkey('alt', 'tab')
+    time.sleep(2)
+    pyautogui.press('alt')
+    time.sleep(2)
+    pyautogui.press('o')
+    time.sleep(2)
+    pyautogui.press('l')
+    time.sleep(2)
+
+    pyautogui.write(mes)
+    time.sleep(2)
+    pyautogui.press('pgdn')
+    time.sleep(2)
+    pyautogui.press('enter')
+    time.sleep(2)
+    pyautogui.leftClick(83, 187)
+    time.sleep(2)
+    pyautogui.leftClick(121, 551)
+    time.sleep(2)
+    pyautogui.leftClick(61, 121)
+    time.sleep(2)
+    pyautogui.leftClick(147, 175)
+    time.sleep(2)
+    pyautogui.leftClick(147, 235)
+    time.sleep(2)
+    pyautogui.press('enter')
+    time.sleep(2)
+
+    pyautogui.write(html_path_cofins_recup)
+    time.sleep(2)
+    pyautogui.press('enter')
+
+    # Ensure the file is saved before attempting to open it
+    time.sleep(5)
+
+def extract_saldo_credor_cofins_recup(html_path_cofins_recup):
+    try:
+        with open(html_path_cofins_recup, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+
+        soup = BeautifulSoup(html_content, 'html.parser')
+        rows = soup.find_all('tr')
+        target_row = None
+
+        for row in rows:
+            if row.find('td', {'colspan': '5', 'class': 's6', 'style': 'font-size:1px'}):
+                target_row = row
+
+        if target_row:
+            valores = [td.get_text(strip=True) for td in target_row.find_all('td')]
+            if len(valores) >= 3:
+                cofins_a_recup = float(valores[2].replace('.', '').replace(',', '.'))
+                print(f"COFINS a recuperar: {cofins_a_recup}")
+                return cofins_a_recup
+            else:
+                print("Erro: Menos de três observações encontradas.")
+                return None
+        else:
+            print("Linha alvo não encontrada.")
+            return None
+    except FileNotFoundError:
+        print(f"Erro: O arquivo {html_path_cofins_recup} não existe. Continuando a execução...")
+        return None

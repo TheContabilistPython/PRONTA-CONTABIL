@@ -1,4 +1,4 @@
-from ipi_a_recup_utils import perform_actions, extract_saldo_credor, compare_and_write_to_excel
+from ipi_a_recup_utils import perform_actions, extract_saldo_credor, compare_and_write_to_excel, perform_actions_cofins_a_recup, extract_saldo_credor_cofins_recup
 from bs4 import BeautifulSoup
 import openpyxl
 import pyautogui
@@ -26,7 +26,7 @@ def get_user_input():
     return company_code, month_year
 
 # Obter o código da empresa e o mês e o ano do usuário
-company_code, month_year = get_user_input()
+company_code, month_year= get_user_input()
 
 day_month_year = '01' + month_year
 
@@ -466,7 +466,12 @@ compare_and_write_to_excel(company_code, month_year, ipi_a_recup)
 # Mostrar resultado
 if ipi_a_recup is not None:
     print(f"IPI a recuperar: {ipi_a_recup:.2f}")
-    
+
+html_path_cofins_recup = "C:\\fiscal\\html\\temp_cofins_recup.htm"   
+perform_actions_cofins_a_recup(company_code, month_year, html_path_cofins_recup)
+
+cofins_a_recup = extract_saldo_credor_cofins_recup(html_path_cofins_recup)
+
 pyautogui.hotkey('win', 'r')
 time.sleep(1)
 pyautogui.write('cmd')

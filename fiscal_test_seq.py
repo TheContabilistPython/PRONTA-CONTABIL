@@ -1,4 +1,3 @@
-from ipi_a_recup_utils import perform_actions, compare_and_write_to_excel, perform_actions_cofins_a_recup, extract_saldo_credor_cofins_recup
 from bs4 import BeautifulSoup
 import openpyxl
 import pyautogui
@@ -89,6 +88,7 @@ html_path_ipi_a_recup = f'C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{compan
 ipi_a_recup = extract_saldo_credor(html_path_ipi_a_recup)
 print(f"IPI a recup: {ipi_a_recup:.2f}".replace('.', ','))
 
+### N MEXER APENAS ADD EM NUMEROS_PROCURADOS
 for row in ws.iter_rows(min_row=2):
     cell_a = row[0].value  # Coluna A (índice 0)
     if cell_a in numeros_procurados:

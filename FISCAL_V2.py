@@ -1,34 +1,138 @@
 from bs4 import BeautifulSoup
 import openpyxl
 import pyautogui
-import tkinter as tk
-from tkinter import simpledialog
 import time
 import os
 import pygetwindow as gw
+import csv
+import customtkinter as ctk
 
 pyautogui.FAILSAFE = False
 
 # Função para obter o código da empresa, o mês e o ano do usuário
 def get_user_input():
-    root = tk.Tk()
+    ctk.set_appearance_mode("dark")  # Modo de aparência escuro
+    ctk.set_default_color_theme("blue")  # Tema de cor padrão
+
+    root = ctk.CTk()
     root.withdraw()  # Esconder a janela principal
     
-    # Solicitar o nome da empresa
-    company_name = simpledialog.askstring(title="Nome da Empresa", prompt="Digite o nome da empresa:")
+    # Carregar dados da empresa do arquivo CSV
+    company_data = []
+    with open(r'C:\\projeto\\empresas.csv', newline='',) as csvfile:
+        reader = csv.DictReader(csvfile, delimiter=';')
+        for row in reader:
+            company_data.append(f"{row['company_code']} - {row['company_name']}")
 
-    # Solicitar o código da empresa
-    company_code = simpledialog.askstring(title="Código da Empresa", prompt="Digite o código da empresa:")
+    # Criar uma nova janela para a entrada do usuário
+    input_window = ctk.CTkToplevel(root)
+    input_window.title("Conciliador Automático de Folha")
+    input_window.geometry("480x400")
+
+    # Solicitar o nome da empresa com sugestões
+    ctk.CTkLabel(input_window, text="Nome da Empresa:").pack(padx=10, pady=10)
+    company_name_var = ctk.StringVar()
+    company_name_entry = ctk.CTkEntry(input_window, textvariable=company_name_var, width=300)
+    company_name_entry.pack(padx=10, pady=10)
+
+    suggestion_listbox = ctk.CTkTextbox(input_window, width=300, height=100)
+    suggestion_listbox.pack(padx=10, pady=10)
+
+    def update_suggestions():
+        value = company_name_var.get().lower()
+        suggestion_listbox.delete("1.0", ctk.END)
+        for item in company_data:
+            if value in item.lower():
+                suggestion_listbox.insert(ctk.END, item + "\n")
+
+    def on_key_release(event):
+        if hasattr(on_key_release, 'after_id'):
+            input_window.after_cancel(on_key_release.after_id)
+        on_key_release.after_id = input_window.after(1000, update_suggestions)
+
+    company_name_entry.bind('<KeyRelease>', on_key_release)
+
+    def on_listbox_select(event):
+        selected_company = suggestion_listbox.get("insert linestart", "insert lineend").strip()
+        company_name_var.set(selected_company)
+        # Destacar a empresa selecionada
+        suggestion_listbox.tag_remove("highlight", "1.0", ctk.END)
+        suggestion_listbox.tag_add("highlight", "insert linestart", "insert lineend")
+        suggestion_listbox.tag_config("highlight", background="yellow", foreground="black")
+
+    suggestion_listbox.bind('<ButtonRelease-1>', on_listbox_select)
 
     # Solicitar o mês e o ano
-    month_year = simpledialog.askstring(title="Mês e Ano", prompt="Digite o mês e o ano (MMYYYY):")
+    ctk.CTkLabel(input_window, text="Mês e Ano (MMYYYY):").pack(padx=10, pady=10)
+    month_year_var = ctk.StringVar()
+    month_year_entry = ctk.CTkEntry(input_window, textvariable=month_year_var)
+    month_year_entry.pack(padx=10, pady=10)
 
-    return company_code, month_year, company_name
+    def on_submit():
+        selected_company = company_name_var.get()
+        company_code, company_name = selected_company.split(' - ', 1)
+        month_year = month_year_var.get()
+        input_window.destroy()
+        root.quit()
+        global user_input
+        user_input = (company_code, month_year, company_name)
+
+    submit_button = ctk.CTkButton(input_window, text="Conciliar", command=on_submit)
+    submit_button.pack(padx=10, pady=10)
+
+    root.mainloop()
+    return user_input
 
 # Obter o código da empresa e o mês e o ano do usuário
 company_code, month_year, company_name = get_user_input()
 
 day_month_year = '01' + month_year
+
+#####################
+
+caminho_html_icms_fundos = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório apuração DimeSC Sequência 22 - Ordem 1.htm"
+total_icms_fundos = 0
+try:
+    with open(caminho_html_icms_fundos, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    # Skip analysis if the file has less than 100 lines
+    if len(content.splitlines()) < 100:
+        print("HTML file has less than 100 lines, skipping analysis.")
+    else:
+        soup = BeautifulSoup(content, 'html.parser')
+        
+        # Procurar pelo valor do FUNDO SOCIAL A RECOLHER
+        fundo_social_result = soup.find('td', string="(=) FUNDO SOCIAL A RECOLHER")
+        if fundo_social_result:
+            row = fundo_social_result.find_parent('tr')
+            fundo_social_value_td = row.find_all('td', class_='s9')[-1]
+            fundo_social_value = fundo_social_value_td.get_text(strip=True)
+            fundo_social_value_numbers = ''.join(filter(str.isdigit, fundo_social_value.replace(',', '')))
+            fundo_social_a_recolher = float(f"{int(fundo_social_value_numbers[:-2])}.{fundo_social_value_numbers[-2:]}")
+        else:
+            fundo_social_a_recolher = 0
+
+        # Procurar pelo valor do FUMDES A RECOLHER
+        fumdes_result = soup.find('td', string="(=) FUMDES A RECOLHER")
+        if fumdes_result:
+            row = fumdes_result.find_parent('tr')
+            fumdes_value_td = row.find_all('td', class_='s9')[-1]
+            fumdes_value = fumdes_value_td.get_text(strip=True)
+            fumdes_value_numbers = ''.join(filter(str.isdigit, fumdes_value.replace(',', '')))
+            fumdes_a_recolher = float(f"{int(fumdes_value_numbers[:-2])}.{fumdes_value_numbers[-2:]}")
+        else:
+            fumdes_a_recolher = 0
+
+        # Somar os valores
+        fundos_a_recolher = fundo_social_a_recolher + fumdes_a_recolher
+        formatted_value = f"{fundos_a_recolher:,.2f}".replace('.', ',').replace(',', '', 1)
+        print(f"fundos_a_recolher: {formatted_value}")
+
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_icms_fundos} não existe. Continuando a execução...")
+except Exception as e:
+    print(f"Erro ao abrir o arquivo {caminho_html_icms_fundos}: {e}")
 
 #####################
 
@@ -375,7 +479,7 @@ excel_path = f'C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{company_code}_{mo
 wb = openpyxl.load_workbook(excel_path)
 ws = wb.active
     
-numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198, 195]
+numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198, 195, 199]
 
 def extract_saldo_credor(html_path_ipi_a_recup):
     try:
@@ -400,6 +504,24 @@ html_path_ipi_a_recup = f'C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{compan
 ipi_a_recup = extract_saldo_credor(html_path_ipi_a_recup)
 print(f"IPI a recup: {ipi_a_recup:.2f}".replace('.', ','))
 
+# Mapeamento de cell_a para os valores correspondentes
+valor_map = {
+    41: 'ICMS_recup',
+    42: 'ipi_a_recup',
+    46: 'total_pis_recup',
+    47: 'total_cofins_recup',
+    2654: 'total_icms_cp_recup',
+    617: 'csrf_retido',
+    185: 'irrf_retido',
+    2707: 'inss_retido',
+    186: 'iss_retido',
+    197: 'total_pis_recolher',
+    196: 'total_cofins_recolher',
+    198: 'total_ipi_recolher',
+    195: 'total_icms_a_recolher',
+    199: 'fundos_a_recolher'
+}
+
 for row in ws.iter_rows(min_row=2):
     cell_a = row[0].value  # Coluna A (índice 0)
     if cell_a in numeros_procurados:
@@ -408,115 +530,17 @@ for row in ws.iter_rows(min_row=2):
         
         # Comparar os valores e escrever "OK" ou "Verificar" na coluna I
         try:
-            if cell_a == 41:
+            if cell_a in valor_map:
+                valor_nome = valor_map[cell_a]
                 try:
-                    if abs(valor_coluna_h - ICMS_recup) <= 0.10:
+                    valor = globals()[valor_nome]
+                    if abs(valor_coluna_h - valor) <= 0.10:
                         row[8].value = "OK"
                     else:
                         row[8].value = "Verificar"
                 except NameError:
-                    print("Erro: ICMS_recup não definido. Continuando a execução...")
+                    print(f"Erro: {valor_nome} não definido. Continuando a execução...")
                     row[8].value = "Verificar"
-            elif cell_a == 42:
-                try:
-                    if abs(valor_coluna_h - ipi_a_recup) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: IPI_a_recup não definido. Continuando a execução...")
-                    row[8].value = "Verificar"
-            elif cell_a == 46:
-                try:
-                    if abs(valor_coluna_h - total_pis_recup) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: total_pis_recup não definido. Continuando a execução...")
-                    row[8].value = "Verificar"
-            elif cell_a == 47:
-                try:
-                    if abs(valor_coluna_h - total_cofins_recup) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: total_cofins_recup não definido. Continuando a execução...")
-                    row[8].value = "Verificar"
-            elif cell_a == 2654:
-                try:
-                    if abs(valor_coluna_h - total_icms_cp_recup) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: total_icms_cp_recup não definido. Continuando a execução...")
-                    row[8].value = "Verificar"
-            elif cell_a == 617:
-                try:
-                    if abs(valor_coluna_h - csrf_retido) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: csrf_retido não definido. Continuando a execução...")
-            elif cell_a == 185:
-                try:
-                    if abs(valor_coluna_h - irrf_retido) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: irrf_retido não definido. Continuando a execução...") 
-            elif cell_a == 2707:
-                try:
-                    if abs(valor_coluna_h - inss_retido) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: inss_retido não definido. Continuando a execução...")
-            elif cell_a == 186:
-                try:
-                    if abs(valor_coluna_h - iss_retido) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: iss_retido não definido. Continuando a execução...")
-            elif cell_a == 197:
-                try:
-                    if abs(valor_coluna_h - total_pis_recolher) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: pis_recolher não definido. Continuando a execução...")
-            elif cell_a == 196:
-                try:
-                    if abs(valor_coluna_h - total_cofins_recolher) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: cofins_recolher não definido. Continuando a execução")
-            elif cell_a == 198:
-                try:
-                    if abs(valor_coluna_h - total_ipi_recolher) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: ipi_recolher não definido. Continuando a execução...")
-            elif cell_a == 195:
-                try:
-                    if abs(valor_coluna_h - total_icms_a_recolher) <= 0.10:
-                        row[8].value = "OK"
-                    else:
-                        row[8].value = "Verificar"
-                except NameError:
-                    print("Erro: icms_a_recolher não definido. Continuando a execução...")
         except TypeError:
             continue
 

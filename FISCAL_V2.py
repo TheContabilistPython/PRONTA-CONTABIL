@@ -32,6 +32,44 @@ day_month_year = '01' + month_year
 
 #####################
 
+caminho_html_icms_a_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório apuração DimeSC Sequência 22 - Ordem 1.htm"
+total_icms_a_recolher = 0
+try:
+    with open(caminho_html_icms_a_recolher, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    # Skip analysis if the file has less than 100 lines
+    if len(content.splitlines()) < 100:
+        print("HTML file has less than 100 lines, skipping analysis.")
+    else:
+        soup = BeautifulSoup(content, 'html.parser')
+        results = soup.find_all('td', string=lambda text: text and "(=)Imposto a recolher" in text)
+
+        for result in results:
+            row = result.find_parent('tr')
+            last_value = row.find_all('td')[-1].get_text(strip=True)
+            try:
+                total_icms_a_recolher += float(last_value.replace('.', '').replace(',', '.'))
+            except ValueError:
+                continue
+
+        total_icms_a_recolher = round(float(total_icms_a_recolher), 2)
+        if total_icms_a_recolher == 0:
+            total_icms_a_recolher = None
+        else:
+            try:
+                if total_icms_a_recolher != 0:
+                    print(f"icms_a_recolher: {total_icms_a_recolher}")
+            except TypeError:
+                print(f"erro ao formatar icms_a_recolher do html")
+        if total_icms_a_recolher is None:
+            total_icms_a_recolher = 0
+        print(f"icms_a_recolher: {total_icms_a_recolher}")  # Print even if zero
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_icms_a_recolher} não existe. Continuando a execução...")
+
+#####################
+
 caminho_html_ipi_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório apuração IPI Sequência 22 - Ordem 2.htm"
 total_ipi_recolher = 0
 try:
@@ -337,7 +375,7 @@ excel_path = f'C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{company_code}_{mo
 wb = openpyxl.load_workbook(excel_path)
 ws = wb.active
     
-numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198]
+numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198, 195]
 
 def extract_saldo_credor(html_path_ipi_a_recup):
     try:
@@ -471,6 +509,14 @@ for row in ws.iter_rows(min_row=2):
                         row[8].value = "Verificar"
                 except NameError:
                     print("Erro: ipi_recolher não definido. Continuando a execução...")
+            elif cell_a == 195:
+                try:
+                    if abs(valor_coluna_h - total_icms_a_recolher) <= 0.10:
+                        row[8].value = "OK"
+                    else:
+                        row[8].value = "Verificar"
+                except NameError:
+                    print("Erro: icms_a_recolher não definido. Continuando a execução...")
         except TypeError:
             continue
 

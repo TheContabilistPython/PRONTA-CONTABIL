@@ -6,6 +6,7 @@ import os
 import pygetwindow as gw
 import csv
 import customtkinter as ctk
+import re
 
 pyautogui.FAILSAFE = False
 
@@ -90,44 +91,143 @@ day_month_year = '01' + month_year
 
 #####################
 
+caminho_html_icms_cp_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório apuração DimeSC Sequência 22 - Ordem 1.htm"
+total_icms_cp_recolher = 0
+try:
+    with open(caminho_html_icms_cp_recolher, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "(=) Imposto a recolher pela utilização do crédito presumido" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        try:
+            total_icms_cp_recolher += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_icms_cp_recolher = round(float(total_icms_cp_recolher), 2)
+    if total_icms_cp_recolher == 0:
+        total_icms_cp_recolher = None
+    else:
+        try:
+            if total_icms_cp_recolher != 0:
+                print(f"ICMS_cp_recolher: {total_icms_cp_recolher:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar icms_cp_recolher do html")
+    if total_icms_cp_recolher is None:
+        total_icms_cp_recolher = 0
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_icms_cp_recolher} não existe. Continuando a execução...")
+
+#####################
+
+caminho_html_issqn_a_recolher = f"C:\\relatorios_fiscal\\Empresa 3001 - BMBCONSULT ENGENHARIA E CONSULTORIA LTDA - ISSQN.htm"
+total_issqn_a_recolher = 0
+try:
+    with open(caminho_html_issqn_a_recolher, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', {'colspan': '3', 'class': 's8'})
+
+    if len(results) > 1:
+        result = results[1]
+        row = result.find_parent('tr')
+        if row:
+            value_td = row.find('td', class_='s8')
+            if value_td:
+                value = value_td.get_text(strip=True)
+                value_numbers = value.replace(' ', '').replace('.', '').replace(',', '.')
+                total_issqn_a_recolher = float(value_numbers)
+                print(f"Total ISSQN a Recolher: {total_issqn_a_recolher:.2f}".replace('.', ','))
+            else:
+                try:
+                    if total_issqn_a_recolher == 0:
+                        print(f"ISS_QN_RECOLHER: = 0")
+                except FileNotFoundError:
+                    print(f"Erro: O arquivo {caminho_html_issqn_a_recolher} não existe. Continuando a execução...")
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_issqn_a_recolher} não existe. Continuando a execução...")
+
+#####################
+
+caminho_sn_a_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Demonstrativo simples nacional.html"
+sn_a_recolher = 0
+try:
+    with open(caminho_sn_a_recolher, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "Valor do Simples a Pagar" in text)
+
+    if not results:
+        print("Nenhum resultado encontrado para 'Valor do Simples a Pagar'")
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        print(f"Valor encontrado: {last_value}")  # Adiciona uma instrução de depuração aqui
+        try:
+            # Remove caracteres não numéricos, exceto vírgula e ponto
+            last_value_cleaned = re.sub(r'[^\d,]', '', last_value)
+            sn_a_recolher += float(last_value_cleaned.replace('.', '').replace(',', '.'))
+        except ValueError:
+            print(f"Erro ao converter o valor: {last_value}")  # Adiciona uma instrução de depuração aqui
+            continue
+
+    total_cofins_recup = round(float(sn_a_recolher), 2)
+    if sn_a_recolher == 0:
+        sn_a_recolher = None
+    else:
+        try:
+            if sn_a_recolher != 0:
+                print(f"sn_recolher: {sn_a_recolher:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar SN a recolher do html")
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_sn_a_recolher} não existe. Continuando a execução...")
+except Exception as e:
+    print(f"Erro ao abrir o arquivo {caminho_sn_a_recolher}: {e}")
+
+#####################
+
 caminho_html_icms_fundos = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório apuração DimeSC Sequência 22 - Ordem 1.htm"
 total_icms_fundos = 0
 try:
     with open(caminho_html_icms_fundos, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
-    else:
-        soup = BeautifulSoup(content, 'html.parser')
+    soup = BeautifulSoup(content, 'html.parser')
         
-        # Procurar pelo valor do FUNDO SOCIAL A RECOLHER
-        fundo_social_result = soup.find('td', string="(=) FUNDO SOCIAL A RECOLHER")
-        if fundo_social_result:
-            row = fundo_social_result.find_parent('tr')
-            fundo_social_value_td = row.find_all('td', class_='s9')[-1]
-            fundo_social_value = fundo_social_value_td.get_text(strip=True)
-            fundo_social_value_numbers = ''.join(filter(str.isdigit, fundo_social_value.replace(',', '')))
-            fundo_social_a_recolher = float(f"{int(fundo_social_value_numbers[:-2])}.{fundo_social_value_numbers[-2:]}")
-        else:
-            fundo_social_a_recolher = 0
+    # Procurar pelo valor do FUNDO SOCIAL A RECOLHER
+    fundo_social_result = soup.find('td', string="(=) FUNDO SOCIAL A RECOLHER")
+    if fundo_social_result:
+        row = fundo_social_result.find_parent('tr')
+        fundo_social_value_td = row.find_all('td', class_='s9')[-1]
+        fundo_social_value = fundo_social_value_td.get_text(strip=True)
+        fundo_social_value_numbers = ''.join(filter(str.isdigit, fundo_social_value.replace(',', '')))
+        fundo_social_a_recolher = float(f"{int(fundo_social_value_numbers[:-2])}.{fundo_social_value_numbers[-2:]}")
+    else:
+        fundo_social_a_recolher = 0
 
-        # Procurar pelo valor do FUMDES A RECOLHER
-        fumdes_result = soup.find('td', string="(=) FUMDES A RECOLHER")
-        if fumdes_result:
-            row = fumdes_result.find_parent('tr')
-            fumdes_value_td = row.find_all('td', class_='s9')[-1]
-            fumdes_value = fumdes_value_td.get_text(strip=True)
-            fumdes_value_numbers = ''.join(filter(str.isdigit, fumdes_value.replace(',', '')))
-            fumdes_a_recolher = float(f"{int(fumdes_value_numbers[:-2])}.{fumdes_value_numbers[-2:]}")
-        else:
-            fumdes_a_recolher = 0
+    # Procurar pelo valor do FUMDES A RECOLHER
+    fumdes_result = soup.find('td', string="(=) FUMDES A RECOLHER")
+    if fumdes_result:
+        row = fumdes_result.find_parent('tr')
+        fumdes_value_td = row.find_all('td', class_='s9')[-1]
+        fumdes_value = fumdes_value_td.get_text(strip=True)
+        fumdes_value_numbers = ''.join(filter(str.isdigit, fumdes_value.replace(',', '')))
+        fumdes_a_recolher = float(f"{int(fumdes_value_numbers[:-2])}.{fumdes_value_numbers[-2:]}")
+    else:
+        fumdes_a_recolher = 0
 
-        # Somar os valores
-        fundos_a_recolher = fundo_social_a_recolher + fumdes_a_recolher
-        formatted_value = f"{fundos_a_recolher:,.2f}".replace('.', ',').replace(',', '', 1)
-        print(f"fundos_a_recolher: {formatted_value}")
+    # Somar os valores
+    fundos_a_recolher = fundo_social_a_recolher + fumdes_a_recolher
+    formatted_value = f"{fundos_a_recolher:,.2f}".replace('.', ',').replace(',', '', 1)
+    print(f"fundos_a_recolher: {formatted_value}")
 
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_icms_fundos} não existe. Continuando a execução...")
@@ -142,33 +242,29 @@ try:
     with open(caminho_html_icms_a_recolher, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "(=)Imposto a recolher" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        try:
+            total_icms_a_recolher += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_icms_a_recolher = round(float(total_icms_a_recolher), 2)
+    if total_icms_a_recolher == 0:
+        total_icms_a_recolher = None
     else:
-        soup = BeautifulSoup(content, 'html.parser')
-        results = soup.find_all('td', string=lambda text: text and "(=)Imposto a recolher" in text)
-
-        for result in results:
-            row = result.find_parent('tr')
-            last_value = row.find_all('td')[-1].get_text(strip=True)
-            try:
-                total_icms_a_recolher += float(last_value.replace('.', '').replace(',', '.'))
-            except ValueError:
-                continue
-
-        total_icms_a_recolher = round(float(total_icms_a_recolher), 2)
-        if total_icms_a_recolher == 0:
-            total_icms_a_recolher = None
-        else:
-            try:
-                if total_icms_a_recolher != 0:
-                    print(f"icms_a_recolher: {total_icms_a_recolher}")
-            except TypeError:
-                print(f"erro ao formatar icms_a_recolher do html")
-        if total_icms_a_recolher is None:
-            total_icms_a_recolher = 0
-        print(f"icms_a_recolher: {total_icms_a_recolher}")  # Print even if zero
+        try:
+            if total_icms_a_recolher != 0:
+                print(f"icms_a_recolher: {total_icms_a_recolher}")
+        except TypeError:
+            print(f"erro ao formatar icms_a_recolher do html")
+    if total_icms_a_recolher is None:
+        total_icms_a_recolher = 0
+    print(f"icms_a_recolher: {total_icms_a_recolher}")  # Print even if zero
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_icms_a_recolher} não existe. Continuando a execução...")
 
@@ -180,33 +276,28 @@ try:
     with open(caminho_html_ipi_recolher, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "Valor do saldo devedor do IPI a recolher" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        try:
+            total_ipi_recolher += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_ipi_recolher = round(float(total_ipi_recolher), 2)
+    if total_ipi_recolher == 0:
+        total_ipi_recolher = None
     else:
-        soup = BeautifulSoup(content, 'html.parser')
-        results = soup.find_all('td', string=lambda text: text and "Valor do saldo devedor do IPI a recolher" in text)
-
-        for result in results:
-            row = result.find_parent('tr')
-            last_value = row.find_all('td')[-1].get_text(strip=True)
-            try:
-                total_ipi_recolher += float(last_value.replace('.', '').replace(',', '.'))
-            except ValueError:
-                continue
-
-        total_ipi_recolher = round(float(total_ipi_recolher), 2)
-        if total_ipi_recolher == 0:
-            total_ipi_recolher = None
-        else:
-            try:
-                if total_ipi_recolher != 0:
-                    print(f"ipi_recolher: {total_ipi_recolher:.2f}".replace('.', ','))
-            except TypeError:
-                print(f"erro ao formatar ipi_recolher do html")
-        if total_ipi_recolher is None:
-            total_ipi_recolher = 0
-        print(f"ipi_recolher: {total_ipi_recolher}")  # Print even if zero
+        try:
+            if total_ipi_recolher != 0:
+                print(f"ipi_recolher: {total_ipi_recolher:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar ipi_recolher do html")
+    if total_ipi_recolher is None:
+        total_ipi_recolher = 0
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_ipi_recolher} não existe. Continuando a execução...")
 
@@ -219,33 +310,29 @@ try:
     with open(caminho_html_cofins_recolher, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "Valor total da contribuição a recolher/pagar no período (08 + 12)" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-2].get_text(strip=True)
+        try:
+            total_cofins_recolher += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_cofins_recolher = round(float(total_cofins_recolher), 2)
+    if total_cofins_recolher == 0:
+        total_cofins_recolher = None
     else:
-        soup = BeautifulSoup(content, 'html.parser')
-        results = soup.find_all('td', string=lambda text: text and "Valor total da contribuição a recolher/pagar no período (08 + 12)" in text)
-
-        for result in results:
-            row = result.find_parent('tr')
-            last_value = row.find_all('td')[-2].get_text(strip=True)
-            try:
-                total_cofins_recolher += float(last_value.replace('.', '').replace(',', '.'))
-            except ValueError:
-                continue
-
-        total_cofins_recolher = round(float(total_cofins_recolher), 2)
-        if total_cofins_recolher == 0:
-            total_cofins_recolher = None
-        else:
-            try:
-                if total_cofins_recolher != 0:
-                    print(f"cofins_recolher: {total_cofins_recolher:.2f}".replace('.', ','))
-            except TypeError:
-                print(f"erro ao formatar cofins_recolher do html")
-        if total_cofins_recolher is None:
-            total_cofins_recolher = 0
-        print(f"cofins_recolher: {total_cofins_recolher}")  # Print even if zero
+        try:
+            if total_cofins_recolher != 0:
+                print(f"cofins_recolher: {total_cofins_recolher:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar cofins_recolher do html")
+    if total_cofins_recolher is None:
+        total_cofins_recolher = 0
+    print(f"cofins_recolher: {total_cofins_recolher}")  # Print even if zero
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_cofins_recolher} não existe. Continuando a execução...")
 
@@ -257,33 +344,29 @@ try:
     with open(caminho_html_pis_recolher, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "Valor total da contribuição a recolher/pagar no período (08 + 12)" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-2].get_text(strip=True)
+        try:
+            total_pis_recolher += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_pis_recolher = round(float(total_pis_recolher), 2)
+    if total_pis_recolher == 0:
+        total_pis_recolher = None
     else:
-        soup = BeautifulSoup(content, 'html.parser')
-        results = soup.find_all('td', string=lambda text: text and "Valor total da contribuição a recolher/pagar no período (08 + 12)" in text)
-
-        for result in results:
-            row = result.find_parent('tr')
-            last_value = row.find_all('td')[-2].get_text(strip=True)
-            try:
-                total_pis_recolher += float(last_value.replace('.', '').replace(',', '.'))
-            except ValueError:
-                continue
-
-        total_pis_recolher = round(float(total_pis_recolher), 2)
-        if total_pis_recolher == 0:
-            total_pis_recolher = None
-        else:
-            try:
-                if total_pis_recolher != 0:
-                    print(f"PIS_recolher: {total_pis_recolher:.2f}".replace('.', ','))
-            except TypeError:
-                print(f"erro ao formatar PIS_recolher do html")
-        if total_pis_recolher is None:
-            total_pis_recolher = 0
-        print(f"PIS_recolher: {total_pis_recolher}")  # Print even if zero
+        try:
+            if total_pis_recolher != 0:
+                print(f"PIS_recolher: {total_pis_recolher:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar PIS_recolher do html")
+    if total_pis_recolher is None:
+        total_pis_recolher = 0
+    print(f"PIS_recolher: {total_pis_recolher}")  # Print even if zero
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_pis_recolher} não existe. Continuando a execução...")
 
@@ -341,31 +424,29 @@ try:
     with open(caminho_html_icms_cp_recup, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "(=) Saldo credor das antecipações para o mês seguinte" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-2].get_text(strip=True)
+        try:
+            total_icms_cp_recup += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_icms_cp_recup = round(float(total_icms_cp_recup), 2)
+    if total_icms_cp_recup == 0:
+        total_icms_cp_recup = None
     else:
-        soup = BeautifulSoup(content, 'html.parser')
-        results = soup.find_all('td', string=lambda text: text and "(=) Saldo credor das antecipações para o mês seguinte" in text)
-
-        for result in results:
-            row = result.find_parent('tr')
-            last_value = row.find_all('td')[-2].get_text(strip=True)
-            try:
-                total_icms_cp_recup += float(last_value.replace('.', '').replace(',', '.'))
-            except ValueError:
-                continue
-
-        total_icms_cp_recup = round(float(total_icms_cp_recup), 2)
-        if total_icms_cp_recup == 0:
-            total_icms_cp_recup = None
-        else:
-            try:
-                if total_icms_cp_recup != 0:
-                    print(f"ICMS_cp_recup: {total_icms_cp_recup:.2f}".replace('.', ','))
-            except TypeError:
-                print(f"erro ao formatar COFINS_recup do html")
-        print(f"ICMS_cp_recup: {total_icms_cp_recup}")  # Print even if zero
+        try:
+            if total_icms_cp_recup != 0:
+                print(f"ICMS_cp_recup: {total_icms_cp_recup:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar ICMS_cp_recup do html")
+    if total_icms_cp_recup is None:
+        total_icms_cp_recup = 0
+    print(f"ICMS_cp_recup: {total_icms_cp_recup}")  # Print even if zero
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_icms_cp_recup} não existe. Continuando a execução...")
 
@@ -377,31 +458,26 @@ try:
     with open(caminho_html_cofins_recup, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "Totais Cofins" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        try:
+            total_cofins_recup += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_cofins_recup = round(float(total_cofins_recup), 2)
+    if total_cofins_recup == 0:
+        total_cofins_recup = None
     else:
-        soup = BeautifulSoup(content, 'html.parser')
-        results = soup.find_all('td', string=lambda text: text and "Totais Cofins" in text)
-
-        for result in results:
-            row = result.find_parent('tr')
-            last_value = row.find_all('td')[-1].get_text(strip=True)
-            try:
-                total_cofins_recup += float(last_value.replace('.', '').replace(',', '.'))
-            except ValueError:
-                continue
-
-        total_cofins_recup = round(float(total_cofins_recup), 2)
-        if total_cofins_recup == 0:
-            total_cofins_recup = None
-        else:
-            try:
-                if total_cofins_recup != 0:
-                    print(f"COFINS_recup: {total_cofins_recup:.2f}".replace('.', ','))
-            except TypeError:
-                print(f"erro ao formatar COFINS_recup do html")
-        print(f"COFINS_recup: {total_cofins_recup}")  # Print even if zero
+        try:
+            if total_cofins_recup != 0:
+                print(f"COFINS_recup: {total_cofins_recup:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar COFINS_recup do html")
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_cofins_recup} não existe. Continuando a execução...")
 
@@ -414,31 +490,26 @@ try:
     with open(caminho_html_pis_recup, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "Totais Pis/Pasep" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        try:
+            total_pis_recup += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    total_pis_recup = round(float(total_pis_recup), 2)
+    if total_pis_recup == 0:
+        total_pis_recup = None
     else:
-        soup = BeautifulSoup(content, 'html.parser')
-        results = soup.find_all('td', string=lambda text: text and "Totais Pis/Pasep" in text)
-
-        for result in results:
-            row = result.find_parent('tr')
-            last_value = row.find_all('td')[-1].get_text(strip=True)
-            try:
-                total_pis_recup += float(last_value.replace('.', '').replace(',', '.'))
-            except ValueError:
-                continue
-
-        total_pis_recup = round(float(total_pis_recup), 2)
-        if total_pis_recup == 0:
-            total_pis_recup = None
-        else:
-            try:
-                if total_pis_recup != 0:
-                    print(f"PIS_recup: {total_pis_recup:.2f}".replace('.', ','))
-            except TypeError:
-                print(f"erro ao formatar PIS_recup do html")
-        print(f"PIS_recup: {total_pis_recup}")  # Print even if zero
+        try:
+            if total_pis_recup != 0:
+                print(f"PIS_recup: {total_pis_recup:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar PIS_recup do html")
 except FileNotFoundError:
     print(f"Erro: O arquivo {caminho_html_pis_recup} não existe. Continuando a execução...")
     
@@ -452,25 +523,21 @@ try:
     with open(html_path_icms_recup, 'r', encoding='utf-8') as file:
         content = file.read()
 
-    # Skip analysis if the file has less than 100 lines
-    if len(content.splitlines()) < 100:
-        print("HTML file has less than 100 lines, skipping analysis.")
-    else:
-        # Cria um objeto BeautifulSoup
-        soup = BeautifulSoup(content, 'html.parser')
+    # Cria um objeto BeautifulSoup
+    soup = BeautifulSoup(content, 'html.parser')
 
-        # Busca a linha que começa com <td colspan="2" class="s9">190</td>
-        result = soup.find('td', {'colspan': '2', 'class': 's9'}, string='190')
+    # Busca a linha que começa com <td colspan="2" class="s9">190</td>
+    result = soup.find('td', {'colspan': '2', 'class': 's9'}, string='190')
 
-        # Exibe a linha inteira
-        if result:
-            row = result.find_parent('tr')
-            observations = row.find_all('td')
-            if len(observations) > 1:
-                ICMS_recup = observations[2].text
-                ICMS_recup = ICMS_recup.replace('.', '').replace(',', '.')
-                ICMS_recup = float(ICMS_recup)
-                print(f"ICMS_recup: {ICMS_recup:.2f}".replace('.', ','))
+    # Exibe a linha inteira
+    if result:
+        row = result.find_parent('tr')
+        observations = row.find_all('td')
+        if len(observations) > 1:
+            ICMS_recup = observations[2].text
+            ICMS_recup = ICMS_recup.replace('.', '').replace(',', '.')
+            ICMS_recup = float(ICMS_recup)
+            print(f"ICMS_recup: {ICMS_recup:.2f}".replace('.', ','))
 except FileNotFoundError:
     print(f"Erro: O arquivo {html_path_icms_recup} não existe. Continuando a execução...")
 
@@ -478,8 +545,12 @@ except FileNotFoundError:
 excel_path = f'C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{company_code}_{month_year}.xlsx'
 wb = openpyxl.load_workbook(excel_path)
 ws = wb.active
+  
+###################################  
     
-numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198, 195, 199]
+numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198, 195, 199, 201, 202, 191]
+
+###################################
 
 def extract_saldo_credor(html_path_ipi_a_recup):
     try:
@@ -499,10 +570,15 @@ def extract_saldo_credor(html_path_ipi_a_recup):
     except FileNotFoundError:
         print(f"Erro: O arquivo {html_path_ipi_a_recup} não existe. Continuando a execução...")
         return None
-
+    
 html_path_ipi_a_recup = f'C:\\projeto\\planilhas\\balancete\\CONCILIACAO_{company_code}_{month_year}.xlsx'
 ipi_a_recup = extract_saldo_credor(html_path_ipi_a_recup)
-print(f"IPI a recup: {ipi_a_recup:.2f}".replace('.', ','))
+if ipi_a_recup is not None:
+    print(f"IPI a recup: {ipi_a_recup:.2f}".replace('.', ','))
+else:
+    print("IPI a recup: None")
+    ipi_a_recup = 0  # Ensure ipi_a_recup is defined
+
 
 # Mapeamento de cell_a para os valores correspondentes
 valor_map = {
@@ -519,7 +595,10 @@ valor_map = {
     196: 'total_cofins_recolher',
     198: 'total_ipi_recolher',
     195: 'total_icms_a_recolher',
-    199: 'fundos_a_recolher'
+    199: 'fundos_a_recolher',
+    202: 'sn_a_recolher',
+    201: 'total_issqn_a_recolher',
+    191: 'total_icms_cp_recolher'
 }
 
 for row in ws.iter_rows(min_row=2):

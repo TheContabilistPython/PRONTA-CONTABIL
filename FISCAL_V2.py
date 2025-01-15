@@ -89,6 +89,72 @@ company_code, month_year, company_name = get_user_input()
 
 day_month_year = '01' + month_year
 
+
+#####################
+
+caminho_html_csll_presumido_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório de apuração IRLP Sequência 22 - Ordem 9.htm"
+csll_presumido_recolher = 0
+try:
+    with open(caminho_html_csll_presumido_recolher, 'r', encoding='utf-8') as file:
+        content = file.read()
+        
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "CSLL ACUMULADO TRIMESTRE" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        try:
+            csll_presumido_recolher += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+        
+    csll_presumido_recolher = round(float(csll_presumido_recolher), 2)
+    if csll_presumido_recolher == 0:
+        csll_presumido_recolher = None
+    else:
+        try:
+            if csll_presumido_recolher != 0:
+                print(f"csll_presumido_recolher: {csll_presumido_recolher:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar csll_presumido_recolher do html")
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_csll_presumido_recolher} não existe. Continuando a execução...")
+
+#####################
+
+
+caminho_html_irpj_presumido_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório de apuração IRLP Sequência 22 - Ordem 9.htm"
+irpj_a_recolher_presumido = 0
+try:
+    with open(caminho_html_irpj_presumido_recolher, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    soup = BeautifulSoup(content, 'html.parser')
+    results = soup.find_all('td', string=lambda text: text and "IRPJ ACUMULADO TRIMESTRE" in text)
+
+    for result in results:
+        row = result.find_parent('tr')
+        last_value = row.find_all('td')[-1].get_text(strip=True)
+        try:
+            irpj_a_recolher_presumido += float(last_value.replace('.', '').replace(',', '.'))
+        except ValueError:
+            continue
+
+    irpj_a_recolher_presumido = round(float(irpj_a_recolher_presumido), 2)
+    if irpj_a_recolher_presumido == 0:
+        irpj_a_recolher_presumido = None
+    else:
+        try:
+            if irpj_a_recolher_presumido != 0:
+                print(f"irpj_presumido_recolher: {irpj_a_recolher_presumido:.2f}".replace('.', ','))
+        except TypeError:
+            print(f"erro ao formatar irpj_presumido_recolher do html")
+    if irpj_a_recolher_presumido is None:
+        irpj_a_recolher_presumido = 0
+except FileNotFoundError:
+    print(f"Erro: O arquivo {caminho_html_irpj_presumido_recolher} não existe. Continuando a execução...")
+
 #####################
 
 caminho_html_icms_cp_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Relatório apuração DimeSC Sequência 22 - Ordem 1.htm"
@@ -124,7 +190,7 @@ except FileNotFoundError:
 
 #####################
 
-caminho_html_issqn_a_recolher = f"C:\\relatorios_fiscal\\Empresa 3001 - BMBCONSULT ENGENHARIA E CONSULTORIA LTDA - ISSQN.htm"
+caminho_html_issqn_a_recolher = f"C:\\relatorios_fiscal\\Empresa 3001 - BMBCONSULT ENGENHARIA E CONSULTORIA LTDA - ISSQN.htm" #arrumar dps
 total_issqn_a_recolher = 0
 try:
     with open(caminho_html_issqn_a_recolher, 'r', encoding='utf-8') as file:
@@ -154,7 +220,7 @@ except FileNotFoundError:
 
 #####################
 
-caminho_sn_a_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Demonstrativo simples nacional.html"
+caminho_sn_a_recolher = f"C:\\relatorios_fiscal\\Empresa {company_code} - {company_name} - Demonstrativo simples nacional Sequência 22 - Ordem 8.htm"
 sn_a_recolher = 0
 try:
     with open(caminho_sn_a_recolher, 'r', encoding='utf-8') as file:
@@ -548,7 +614,8 @@ ws = wb.active
   
 ###################################  
     
-numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198, 195, 199, 201, 202, 191]
+numeros_procurados = [41, 42, 46, 47, 2654, 617, 185, 2707, 186, 197, 196, 198, 195, 199, 201, 202, 191, 190, 192]
+
 
 ###################################
 
@@ -598,12 +665,19 @@ valor_map = {
     199: 'fundos_a_recolher',
     202: 'sn_a_recolher',
     201: 'total_issqn_a_recolher',
-    191: 'total_icms_cp_recolher'
+    191: 'total_icms_cp_recolher',
+    190: 'irpj_a_recolher_presumido',
+    192: 'csll_presumido_recolher'
 }
+
+# Extract the month from the user's input
+input_month = month_year[:2]
 
 for row in ws.iter_rows(min_row=2):
     cell_a = row[0].value  # Coluna A (índice 0)
     if cell_a in numeros_procurados:
+        valor_coluna_f = row[5].value  # Coluna F (índice 5)
+        valor_coluna_g = row[6].value  # Coluna G (índice 6)
         valor_coluna_h = row[7].value  # Coluna H (índice 7)
         print(f"Número {cell_a} encontrado: Valor na coluna H = {valor_coluna_h}")
         
@@ -613,10 +687,24 @@ for row in ws.iter_rows(min_row=2):
                 valor_nome = valor_map[cell_a]
                 try:
                     valor = globals()[valor_nome]
-                    if abs(valor_coluna_h - valor) <= 0.10:
-                        row[8].value = "OK"
+                    if cell_a == 190 and input_month in ['01', '02', '05', '08', '11', '12']:
+                        valor_comparacao = valor_coluna_g - valor_coluna_f
+                        if abs(valor_comparacao - valor) <= 0.10:
+                            row[8].value = "OK"
+                        else:
+                            row[8].value = "Verificar"
+                    elif cell_a == 192 and input_month in ['01', '02', '05', '08', '11', '12']:
+                        valor_comparacao = valor_coluna_g - valor_coluna_f
+                        if abs(valor_comparacao - valor) <= 0.10:
+                            row[8].value = "OK"
+                        else:
+                            row[8].value = "Verificar"
                     else:
-                        row[8].value = "Verificar"
+                        valor_comparacao = valor_coluna_h
+                        if abs(valor_comparacao - valor) <= 0.10:
+                            row[8].value = "OK"
+                        else:
+                            row[8].value = "Verificar"
                 except NameError:
                     print(f"Erro: {valor_nome} não definido. Continuando a execução...")
                     row[8].value = "Verificar"

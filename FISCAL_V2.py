@@ -381,7 +381,7 @@ try:
 
     for result in results:
         row = result.find_parent('tr')
-        last_value = row.find_all('td')[-2].get_text(strip=True)
+        last_value = row.find_all('td')[-1].get_text(strip=True)
         try:
             total_cofins_recolher += float(last_value.replace('.', '').replace(',', '.'))
         except ValueError:
